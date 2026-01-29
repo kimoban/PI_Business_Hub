@@ -12,13 +12,24 @@ export function getSession() {
   // Use PostgreSQL session store if DATABASE_URL is available
   let store;
   if (process.env.DATABASE_URL) {
-    const pgStore = connectPg(session);
-    store = new pgStore({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
-      ttl: sessionTtl,
-      tableName: "sessions",
-    });
+    try {
+      const pgStore = connectPg(session);
+      store = new pgStore({
+        conString: process.env.DATABASE_URL,
+        createTableIfMissing: true,
+        ttl: sessionTtl,
+        tableName: "sessions",
+        errorLog: (err) => {
+          console.error("Session store error:", err);
+        },
+      });
+      console.log("Using PostgreSQL session store");
+    } catch (err) {
+      console.error("Failed to create PostgreSQL session store:", err);
+      console.log("Falling back to memory session store");
+    }
+  } else {
+    console.log("No DATABASE_URL, using memory session store");
   }
 
   return session({
@@ -28,7 +39,9 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
+      // For Render: secure cookies work with their HTTPS, but need sameSite for cross-origin
       secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
       maxAge: sessionTtl,
     },
   });
@@ -78,9 +91,11 @@ export async function setupAuth(app: Express) {
     req.session.save((err) => {
       if (err) {
         console.error("Session save error:", err);
-        return res.status(500).json({ error: "Failed to create session" });
+        // Still try to redirect - session might work with memory store
+        return res.redirect("/?auth=error");
       }
-      res.redirect("/");
+      console.log("Session saved successfully for demo user");
+      res.redirect("/dashboard");
     });
   });
 

@@ -19,6 +19,26 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Health check endpoint (before auth setup)
+  app.get("/api/health", async (req, res) => {
+    const health: any = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      database: "unknown",
+    };
+    
+    try {
+      // Test database connection
+      await storage.getBusiness(1);
+      health.database = "connected";
+    } catch (err: any) {
+      health.database = "error: " + (err.message || "unknown");
+    }
+    
+    res.json(health);
+  });
+
   // Setup Auth first
   await setupAuth(app);
   registerAuthRoutes(app);
