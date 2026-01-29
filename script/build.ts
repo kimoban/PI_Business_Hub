@@ -41,14 +41,13 @@ async function buildClient() {
   if (existsSync(path.join(clientPath, "angular.json"))) {
     console.log("Building Angular client...");
     
-    // Install dependencies if node_modules doesn't exist
-    if (!existsSync(path.join(clientPath, "node_modules"))) {
-      console.log("Installing Angular dependencies...");
-      execSync("npm install", { cwd: clientPath, stdio: "inherit" });
-    }
+    // Always install dependencies to ensure Angular CLI is available
+    console.log("Installing Angular dependencies...");
+    execSync("npm install --include=dev", { cwd: clientPath, stdio: "inherit" });
     
-    // Build Angular app
-    execSync("npx ng build --configuration=production", { cwd: clientPath, stdio: "inherit" });
+    // Build Angular app using npm script (more reliable than npx ng)
+    console.log("Running Angular build...");
+    execSync("npm run build -- --configuration=production", { cwd: clientPath, stdio: "inherit" });
     
     // Move output to dist/public
     const angularOutput = path.join(clientPath, "dist", "client", "browser");
