@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Check, ShieldCheck, Zap, Smartphone, ArrowRight } from "lucide-react";
+import { Check, ShieldCheck, Zap, Smartphone, ArrowRight, CheckSquare } from "lucide-react";
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();

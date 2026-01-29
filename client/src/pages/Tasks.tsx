@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertTaskSchema, type Task } from "@shared/schema";
+import { createTaskSchema, type Task, type CreateTask } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -165,9 +165,8 @@ function CreateTaskDialog({ businessId, onClose }: { businessId: number, onClose
   const { mutate: createTask, isPending } = useCreateTask(businessId);
   const { toast } = useToast();
   
-  const formSchema = insertTaskSchema.omit({ businessId: true, id: true, createdAt: true });
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<CreateTask>({
+    resolver: zodResolver(createTaskSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -176,7 +175,7 @@ function CreateTaskDialog({ businessId, onClose }: { businessId: number, onClose
     }
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
+  const onSubmit = (data: CreateTask) => {
     createTask(data, {
       onSuccess: () => {
         toast({ title: "Task created successfully" });

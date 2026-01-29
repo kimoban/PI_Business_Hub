@@ -2,6 +2,7 @@ import { useProfile } from "@/hooks/use-business-data";
 import { useTasks } from "@/hooks/use-tasks";
 import { useCustomers } from "@/hooks/use-customers";
 import { useForms } from "@/hooks/use-forms";
+import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { motion } from "framer-motion";
 
 export default function Dashboard() {
   const { data: profile, isLoading: loadingProfile } = useProfile();
+  const { user } = useAuth();
   
   if (loadingProfile) {
     return (
@@ -32,7 +34,7 @@ export default function Dashboard() {
       <div className="flex flex-col space-y-8">
         <div>
           <h2 className="text-3xl font-display font-bold tracking-tight text-foreground">
-            Welcome back, {profile?.user?.firstName || "User"}
+            Welcome back, {user?.firstName || "User"}
           </h2>
           <p className="text-muted-foreground mt-1">
             Here's what's happening with your business today.

@@ -52,8 +52,8 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={user ? ProtectedRoute : LandingPage} >
-        {(params) => (user ? <ProtectedRoute component={Dashboard} /> : <LandingPage />)}
+      <Route path="/">
+        {user ? <ProtectedRoute component={Dashboard} /> : <LandingPage />}
       </Route>
       
       <Route path="/onboarding" component={Onboarding} />

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertBusinessSchema } from "@shared/schema";
+import { updateBusinessSchema, type InsertBusiness } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -49,9 +49,9 @@ function BusinessSettingsForm({ business }: { business: any }) {
   const { mutate: updateBusiness, isPending } = useUpdateBusiness();
   const { toast } = useToast();
   
-  const formSchema = insertBusinessSchema.omit({ id: true, createdAt: true });
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  type BusinessUpdate = z.infer<typeof updateBusinessSchema>;
+  const form = useForm<BusinessUpdate>({
+    resolver: zodResolver(updateBusinessSchema),
     defaultValues: {
       name: business.name,
       email: business.email || "",
@@ -60,7 +60,7 @@ function BusinessSettingsForm({ business }: { business: any }) {
     }
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
+  const onSubmit = (data: BusinessUpdate) => {
     updateBusiness({ id: business.id, ...data }, {
       onSuccess: () => toast({ title: "Settings updated" }),
       onError: () => toast({ title: "Failed to update", variant: "destructive" })

@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCustomerSchema } from "@shared/schema";
+import { createCustomerSchema, type CreateCustomer } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -138,9 +138,8 @@ function CreateCustomerDialog({ businessId, onClose }: { businessId: number, onC
   const { mutate: createCustomer, isPending } = useCreateCustomer(businessId);
   const { toast } = useToast();
   
-  const formSchema = insertCustomerSchema.omit({ businessId: true, id: true, createdAt: true });
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<CreateCustomer>({
+    resolver: zodResolver(createCustomerSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -149,7 +148,7 @@ function CreateCustomerDialog({ businessId, onClose }: { businessId: number, onC
     }
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
+  const onSubmit = (data: CreateCustomer) => {
     createCustomer(data, {
       onSuccess: () => {
         toast({ title: "Customer added" });

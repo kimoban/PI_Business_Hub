@@ -147,10 +147,21 @@ export const insertFormSchema = createInsertSchema(forms).omit({ id: true, creat
 export const insertFormSubmissionSchema = createInsertSchema(formSubmissions).omit({ id: true, createdAt: true });
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true });
 
+// Client-friendly schemas (businessId handled by server)
+export const createCustomerSchema = insertCustomerSchema.omit({ businessId: true });
+export const createTaskSchema = insertTaskSchema.omit({ businessId: true });
+export const createFormSchema = insertFormSchema.omit({ businessId: true, schema: true }).extend({
+  schema: z.any().optional()
+});
+export const updateBusinessSchema = insertBusinessSchema.partial();
+
 // === TYPES ===
 
 export type Business = typeof businesses.$inferSelect;
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
+export type CreateCustomer = z.infer<typeof createCustomerSchema>;
+export type CreateTask = z.infer<typeof createTaskSchema>;
+export type CreateForm = z.infer<typeof createFormSchema>;
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;

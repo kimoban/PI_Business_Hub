@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertFormSchema } from "@shared/schema";
+import { createFormSchema, type CreateForm } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,16 +81,15 @@ function CreateFormDialog({ businessId, onClose }: { businessId: number, onClose
   const { mutate: createForm, isPending } = useCreateForm(businessId);
   const { toast } = useToast();
   
-  const formSchema = insertFormSchema.omit({ businessId: true, id: true, createdAt: true, schema: true });
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<CreateForm>({
+    resolver: zodResolver(createFormSchema),
     defaultValues: {
       title: "",
       description: "",
     }
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
+  const onSubmit = (data: CreateForm) => {
     // For prototype, we just send a static schema
     const payload = {
       ...data,

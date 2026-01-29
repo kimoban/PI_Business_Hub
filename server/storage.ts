@@ -2,7 +2,7 @@ import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import {
   users, businesses, profiles, customers, tasks, forms, formSubmissions,
-  type User, type InsertUser,
+  type User, type UpsertUser,
   type Business, type InsertBusiness,
   type Profile, type InsertProfile,
   type Customer, type InsertCustomer,
@@ -59,7 +59,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async upsertUser(user: InsertUser): Promise<User> {
+  async upsertUser(user: UpsertUser): Promise<User> {
     const [existing] = await db.select().from(users).where(eq(users.id, user.id as string));
     if (existing) {
         return existing;
