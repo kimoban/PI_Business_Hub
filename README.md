@@ -21,48 +21,57 @@ A modern web-based SaaS platform for managing business operations including task
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PostgreSQL database
 - npm or yarn
 
 ## Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <your-repo-url>
    cd PI_Business_Hub
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**
+
    ```bash
    cp .env.example .env
    ```
+
    Edit `.env` and set your database URL and other configuration.
 
 4. **Push database schema**
+
    ```bash
    npm run db:push
    ```
 
 5. **Start development server**
+
    ```bash
    npm run dev
    ```
+
    The app will be available at `http://localhost:5000`
 
 ## Building for Production
 
 1. **Build the application**
+
    ```bash
    npm run build
    ```
 
 2. **Start production server**
+
    ```bash
    npm start
    ```
@@ -93,6 +102,7 @@ A modern web-based SaaS platform for managing business operations including task
 ### Deploy to Vercel (Frontend) + Supabase (Database)
 
 For a serverless approach:
+
 1. Use Supabase for PostgreSQL
 2. Deploy frontend to Vercel
 3. Deploy backend separately or use Edge Functions
@@ -116,7 +126,7 @@ For a serverless approach:
 
 ## Project Structure
 
-```
+```text
 PI_Business_Hub/
 ├── client/               # React frontend
 │   ├── src/
@@ -140,7 +150,7 @@ PI_Business_Hub/
 ## API Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| ------ | -------- | ----------- |
 | GET | `/api/profiles/me` | Get current user profile |
 | POST | `/api/businesses` | Create a new business |
 | GET | `/api/businesses/:id` | Get business details |
@@ -154,7 +164,7 @@ PI_Business_Hub/
 ## Environment Variables
 
 | Variable | Description | Required |
-|----------|-------------|----------|
+| -------- | ----------- | -------- |
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `PORT` | Server port (default: 5000) | No |
 | `NODE_ENV` | Environment (development/production) | Yes |
