@@ -35,3 +35,10 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Replit
+.replit
+.local/
+replit.nix
+.upm/
+.cache/
