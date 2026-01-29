@@ -80,6 +80,41 @@ export const formSubmissions = pgTable("form_submissions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Reminders table for task-linked and standalone reminders
+export const reminderTypeEnum = ["task", "customer", "payment", "custom"] as const;
+export const reminderStatusEnum = ["pending", "sent", "snoozed", "dismissed", "completed"] as const;
+
+export const reminders = pgTable("reminders", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").notNull().references(() => businesses.id),
+  taskId: integer("task_id").references(() => tasks.id),
+  customerId: integer("customer_id").references(() => customers.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type", { enum: reminderTypeEnum }).default("custom").notNull(),
+  status: text("status", { enum: reminderStatusEnum }).default("pending").notNull(),
+  dueAt: timestamp("due_at").notNull(),
+  isRecurring: boolean("is_recurring").default(false),
+  recurringPattern: text("recurring_pattern"), // 'daily', 'weekly', 'monthly'
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications table for in-app notifications
+export const notificationTypeEnum = ["reminder", "task_update", "customer_added", "system"] as const;
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  businessId: integer("business_id").references(() => businesses.id),
+  type: text("type", { enum: notificationTypeEnum }).default("system").notNull(),
+  title: text("title").notNull(),
+  message: text("message"),
+  isRead: boolean("is_read").default(false),
+  linkUrl: text("link_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const profilesRelations = relations(profiles, ({ one }) => ({
@@ -137,6 +172,36 @@ export const formSubmissionsRelations = relations(formSubmissions, ({ one }) => 
   }),
 }));
 
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  business: one(businesses, {
+    fields: [reminders.businessId],
+    references: [businesses.id],
+  }),
+  task: one(tasks, {
+    fields: [reminders.taskId],
+    references: [tasks.id],
+  }),
+  customer: one(customers, {
+    fields: [reminders.customerId],
+    references: [customers.id],
+  }),
+  createdByUser: one(users, {
+    fields: [reminders.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  business: one(businesses, {
+    fields: [notifications.businessId],
+    references: [businesses.id],
+  }),
+}));
+
 
 // === ZOD SCHEMAS ===
 
@@ -146,6 +211,8 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, creat
 export const insertFormSchema = createInsertSchema(forms).omit({ id: true, createdAt: true });
 export const insertFormSubmissionSchema = createInsertSchema(formSubmissions).omit({ id: true, createdAt: true });
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true });
+export const insertReminderSchema = createInsertSchema(reminders).omit({ id: true, createdAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
 // Client-friendly schemas (businessId handled by server)
 export const createCustomerSchema = insertCustomerSchema.omit({ businessId: true });
@@ -153,6 +220,8 @@ export const createTaskSchema = insertTaskSchema.omit({ businessId: true });
 export const createFormSchema = insertFormSchema.omit({ businessId: true, schema: true }).extend({
   schema: z.any().optional()
 });
+export const createReminderSchema = insertReminderSchema.omit({ businessId: true, createdBy: true });
+export const createNotificationSchema = insertNotificationSchema.omit({ businessId: true });
 export const updateBusinessSchema = insertBusinessSchema.partial();
 
 // === TYPES ===
@@ -177,6 +246,14 @@ export type InsertFormSubmission = z.infer<typeof insertFormSubmissionSchema>;
 
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
+
+export type Reminder = typeof reminders.$inferSelect;
+export type InsertReminder = z.infer<typeof insertReminderSchema>;
+export type CreateReminder = z.infer<typeof createReminderSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type CreateNotification = z.infer<typeof createNotificationSchema>;
 
 // Export Auth models too for convenience
 export * from "./models/auth";

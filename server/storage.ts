@@ -1,14 +1,16 @@
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import {
-  users, businesses, profiles, customers, tasks, forms, formSubmissions,
+  users, businesses, profiles, customers, tasks, forms, formSubmissions, reminders, notifications,
   type User, type UpsertUser,
   type Business, type InsertBusiness,
   type Profile, type InsertProfile,
   type Customer, type InsertCustomer,
   type Task, type InsertTask,
   type Form, type InsertForm,
-  type FormSubmission, type InsertFormSubmission
+  type FormSubmission, type InsertFormSubmission,
+  type Reminder, type InsertReminder,
+  type Notification, type InsertNotification
 } from "@shared/schema";
 import { IAuthStorage } from "./replit_integrations/auth";
 
@@ -22,6 +24,7 @@ export interface IStorage extends IAuthStorage {
   createProfile(profile: InsertProfile): Promise<Profile>;
   getProfile(userId: string): Promise<Profile | undefined>;
   getProfilesByBusiness(businessId: number): Promise<Profile[]>;
+  updateProfile(userId: string, updates: Partial<InsertProfile>): Promise<Profile>;
   
   // Customers
   createCustomer(customer: InsertCustomer): Promise<Customer>;
@@ -45,6 +48,25 @@ export interface IStorage extends IAuthStorage {
   // Submissions
   createSubmission(submission: InsertFormSubmission): Promise<FormSubmission>;
   getSubmissions(formId: number): Promise<(FormSubmission & { user: User | null })[]>;
+
+  // Reminders
+  createReminder(reminder: InsertReminder): Promise<Reminder>;
+  getReminders(businessId: number): Promise<(Reminder & { task: Task | null, customer: Customer | null })[]>;
+  getReminder(id: number): Promise<Reminder | undefined>;
+  updateReminder(id: number, updates: Partial<InsertReminder>): Promise<Reminder>;
+  deleteReminder(id: number): Promise<void>;
+
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotifications(userId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  markNotificationRead(id: number): Promise<Notification>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  deleteNotification(id: number): Promise<void>;
+
+  // Admin
+  getUsersByBusiness(businessId: number): Promise<(Profile & { user: User })[]>;
+  updateUserRole(userId: string, role: string): Promise<Profile>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -193,6 +215,116 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(formSubmissions.createdAt));
         
     return result.map(r => ({ ...r.submission, user: r.user }));
+  }
+
+  // Reminders
+  async createReminder(reminder: InsertReminder): Promise<Reminder> {
+    const [newReminder] = await db.insert(reminders).values(reminder).returning();
+    return newReminder;
+  }
+
+  async getReminders(businessId: number): Promise<(Reminder & { task: Task | null, customer: Customer | null })[]> {
+    const result = await db
+      .select({
+        reminder: reminders,
+        task: tasks,
+        customer: customers
+      })
+      .from(reminders)
+      .leftJoin(tasks, eq(reminders.taskId, tasks.id))
+      .leftJoin(customers, eq(reminders.customerId, customers.id))
+      .where(eq(reminders.businessId, businessId))
+      .orderBy(desc(reminders.dueAt));
+      
+    return result.map(r => ({ ...r.reminder, task: r.task, customer: r.customer }));
+  }
+
+  async getReminder(id: number): Promise<Reminder | undefined> {
+    const [reminder] = await db.select().from(reminders).where(eq(reminders.id, id));
+    return reminder;
+  }
+
+  async updateReminder(id: number, updates: Partial<InsertReminder>): Promise<Reminder> {
+    const [updated] = await db.update(reminders).set(updates).where(eq(reminders.id, id)).returning();
+    return updated;
+  }
+
+  async deleteReminder(id: number): Promise<void> {
+    await db.delete(reminders).where(eq(reminders.id, id));
+  }
+
+  // Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return await db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return result[0]?.count ?? 0;
+  }
+
+  async markNotificationRead(id: number): Promise<Notification> {
+    const [updated] = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.userId, userId));
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    await db.delete(notifications).where(eq(notifications.id, id));
+  }
+
+  // Admin methods
+  async getUsersByBusiness(businessId: number): Promise<(Profile & { user: User })[]> {
+    const result = await db
+      .select({
+        profile: profiles,
+        user: users
+      })
+      .from(profiles)
+      .innerJoin(users, eq(profiles.userId, users.id))
+      .where(eq(profiles.businessId, businessId));
+    
+    return result.map(r => ({
+      ...r.profile,
+      user: r.user
+    }));
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<Profile> {
+    const [updated] = await db
+      .update(profiles)
+      .set({ role: role as any })
+      .where(eq(profiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async updateProfile(userId: string, updates: Partial<InsertProfile>): Promise<Profile> {
+    const [updated] = await db
+      .update(profiles)
+      .set(updates)
+      .where(eq(profiles.userId, userId))
+      .returning();
+    return updated;
   }
 }
 

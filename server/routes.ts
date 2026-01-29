@@ -4,6 +4,15 @@ import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { api, errorSchemas } from "@shared/routes";
 import { z } from "zod";
+import { 
+  loadUserProfile, 
+  requirePermission, 
+  requireBusiness, 
+  requireBusinessMatch,
+  requireAdmin,
+  hasPermission,
+  getRolePermissions
+} from "./middleware/rbac";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -13,25 +22,9 @@ export async function registerRoutes(
   // Setup Auth first
   await setupAuth(app);
   registerAuthRoutes(app);
-
-  // Helper to get profile and business context
-  // In a real app, this would be middleware
-  const requireBusiness = async (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
-    
-    const profile = await storage.getProfile(req.user.claims.sub);
-    if (!profile || !profile.businessId) {
-       // If no profile or business, maybe auto-create for prototype?
-       // For now, let's assume valid state or handle in specific routes
-       // We'll just attach what we have
-       req.profile = profile;
-       return next();
-    }
-    
-    req.profile = profile;
-    req.businessId = profile.businessId;
-    next();
-  };
+  
+  // Load user profile for all authenticated requests
+  app.use(loadUserProfile());
 
 
   // === PROFILES ===
@@ -93,14 +86,13 @@ export async function registerRoutes(
 
 
   // === TASKS ===
-  app.get(api.tasks.list.path, async (req, res) => {
+  app.get(api.tasks.list.path, requirePermission("task:read"), requireBusinessMatch(), async (req, res) => {
     const businessId = Number(req.params.businessId);
     const tasks = await storage.getTasks(businessId);
     res.json(tasks);
   });
 
-  app.post(api.tasks.create.path, async (req: any, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+  app.post(api.tasks.create.path, requirePermission("task:create"), requireBusinessMatch(), async (req: any, res) => {
     const businessId = Number(req.params.businessId);
     
     try {
@@ -119,7 +111,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put(api.tasks.update.path, async (req, res) => {
+  app.put(api.tasks.update.path, requirePermission("task:update"), async (req, res) => {
     const id = Number(req.params.id);
     try {
       const input = api.tasks.update.input.parse(req.body);
@@ -130,7 +122,7 @@ export async function registerRoutes(
     }
   });
   
-  app.delete(api.tasks.delete.path, async (req, res) => {
+  app.delete(api.tasks.delete.path, requirePermission("task:delete"), async (req, res) => {
       const id = Number(req.params.id);
       await storage.deleteTask(id);
       res.status(204).send();
@@ -138,13 +130,13 @@ export async function registerRoutes(
 
 
   // === CUSTOMERS ===
-  app.get(api.customers.list.path, async (req, res) => {
+  app.get(api.customers.list.path, requirePermission("customer:read"), requireBusinessMatch(), async (req, res) => {
     const businessId = Number(req.params.businessId);
     const customers = await storage.getCustomers(businessId);
     res.json(customers);
   });
 
-  app.post(api.customers.create.path, async (req, res) => {
+  app.post(api.customers.create.path, requirePermission("customer:create"), requireBusinessMatch(), async (req, res) => {
     const businessId = Number(req.params.businessId);
     try {
       const input = api.customers.create.input.parse(req.body);
@@ -161,7 +153,7 @@ export async function registerRoutes(
     }
   });
   
-  app.put(api.customers.update.path, async (req, res) => {
+  app.put(api.customers.update.path, requirePermission("customer:update"), async (req, res) => {
       const id = Number(req.params.id);
       try {
           const input = api.customers.update.input.parse(req.body);
@@ -174,20 +166,20 @@ export async function registerRoutes(
 
 
   // === FORMS ===
-  app.get(api.forms.list.path, async (req, res) => {
+  app.get(api.forms.list.path, requirePermission("form:read"), requireBusinessMatch(), async (req, res) => {
     const businessId = Number(req.params.businessId);
     const forms = await storage.getForms(businessId);
     res.json(forms);
   });
   
-  app.get(api.forms.get.path, async (req, res) => {
+  app.get(api.forms.get.path, requirePermission("form:read"), async (req, res) => {
      const id = Number(req.params.id);
      const form = await storage.getForm(id);
      if (!form) return res.status(404).json({ message: "Form not found" });
      res.json(form);
   });
 
-  app.post(api.forms.create.path, async (req, res) => {
+  app.post(api.forms.create.path, requirePermission("form:create"), requireBusinessMatch(), async (req, res) => {
     const businessId = Number(req.params.businessId);
     try {
       const input = api.forms.create.input.parse(req.body);
@@ -204,7 +196,7 @@ export async function registerRoutes(
     }
   });
   
-  app.delete(api.forms.delete.path, async (req, res) => {
+  app.delete(api.forms.delete.path, requirePermission("form:delete"), async (req, res) => {
       const id = Number(req.params.id);
       await storage.deleteForm(id);
       res.status(204).send();
@@ -236,17 +228,228 @@ export async function registerRoutes(
       }
   });
   
+
+  // === REMINDERS ===
+  app.get(api.reminders.list.path, requirePermission("reminder:read"), requireBusinessMatch(), async (req, res) => {
+    const businessId = Number(req.params.businessId);
+    const reminders = await storage.getReminders(businessId);
+    res.json(reminders);
+  });
+
+  app.get(api.reminders.get.path, requirePermission("reminder:read"), async (req, res) => {
+    const id = Number(req.params.id);
+    const reminder = await storage.getReminder(id);
+    if (!reminder) return res.status(404).json({ message: "Reminder not found" });
+    res.json(reminder);
+  });
+
+  app.post(api.reminders.create.path, requirePermission("reminder:create"), requireBusinessMatch(), async (req: any, res) => {
+    const businessId = Number(req.params.businessId);
+    
+    try {
+      const input = api.reminders.create.input.parse(req.body);
+      const reminder = await storage.createReminder({
+        ...input,
+        businessId,
+        createdBy: req.user.claims.sub
+      });
+      res.status(201).json(reminder);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put(api.reminders.update.path, requirePermission("reminder:update"), async (req, res) => {
+    const id = Number(req.params.id);
+    try {
+      const input = api.reminders.update.input.parse(req.body);
+      const updated = await storage.updateReminder(id, input);
+      res.json(updated);
+    } catch (err) {
+      res.status(404).json({ message: "Reminder not found" });
+    }
+  });
+
+  app.delete(api.reminders.delete.path, requirePermission("reminder:delete"), async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteReminder(id);
+    res.status(204).send();
+  });
+
+  app.post(api.reminders.complete.path, requirePermission("reminder:update"), async (req, res) => {
+    const id = Number(req.params.id);
+    try {
+      const updated = await storage.updateReminder(id, { status: "completed" });
+      res.json(updated);
+    } catch (err) {
+      res.status(404).json({ message: "Reminder not found" });
+    }
+  });
+
+  app.post(api.reminders.snooze.path, requirePermission("reminder:update"), async (req, res) => {
+    const id = Number(req.params.id);
+    try {
+      const input = api.reminders.snooze.input.parse(req.body);
+      const updated = await storage.updateReminder(id, { 
+        dueAt: new Date(input.dueAt),
+        status: "snoozed"
+      });
+      res.json(updated);
+    } catch (err) {
+      res.status(404).json({ message: "Reminder not found" });
+    }
+  });
+
+
+  // === NOTIFICATIONS ===
+  app.get(api.notifications.list.path, requirePermission("notification:read"), async (req: any, res) => {
+    const notifications = await storage.getNotifications(req.user.claims.sub);
+    res.json(notifications);
+  });
+
+  app.get(api.notifications.unreadCount.path, requirePermission("notification:read"), async (req: any, res) => {
+    const count = await storage.getUnreadNotificationCount(req.user.claims.sub);
+    res.json({ count });
+  });
+
+  app.post(api.notifications.markRead.path, requirePermission("notification:manage"), async (req, res) => {
+    const id = Number(req.params.id);
+    try {
+      const updated = await storage.markNotificationRead(id);
+      res.json(updated);
+    } catch (err) {
+      res.status(404).json({ message: "Notification not found" });
+    }
+  });
+
+  app.post(api.notifications.markAllRead.path, requirePermission("notification:manage"), async (req: any, res) => {
+    await storage.markAllNotificationsRead(req.user.claims.sub);
+    res.json({ success: true });
+  });
+
+  app.delete(api.notifications.delete.path, requirePermission("notification:manage"), async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteNotification(id);
+    res.status(204).send();
+  });
+
+
+  // === ADMIN ENDPOINTS ===
   
-  // Seed function 
-  seedDatabase();
+  // Get current user's role and permissions
+  app.get("/api/auth/permissions", async (req: any, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const profile = req.profile || await storage.getProfile(req.user.claims.sub);
+    const role = profile?.role || "guest";
+    const permissions = getRolePermissions(role);
+    
+    res.json({
+      role,
+      permissions,
+      businessId: profile?.businessId || null
+    });
+  });
+  
+  // Admin: Get all users in business
+  app.get("/api/admin/users", requireAdmin(), async (req: any, res) => {
+    if (!req.profile?.businessId) {
+      return res.status(403).json({ error: "No business associated" });
+    }
+    
+    const users = await storage.getUsersByBusiness(req.profile.businessId);
+    res.json(users);
+  });
+  
+  // Admin: Update user role
+  app.put("/api/admin/users/:userId/role", requireAdmin(), async (req: any, res) => {
+    const { userId } = req.params;
+    const { role } = req.body;
+    
+    if (!["admin", "staff", "guest", "client"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+    
+    // Can't change own role
+    if (userId === req.user.claims.sub) {
+      return res.status(400).json({ error: "Cannot change your own role" });
+    }
+    
+    try {
+      const updated = await storage.updateUserRole(userId, role);
+      res.json(updated);
+    } catch (err) {
+      res.status(404).json({ error: "User not found" });
+    }
+  });
+  
+  // Admin: Get business analytics
+  app.get("/api/admin/analytics", requireAdmin(), async (req: any, res) => {
+    if (!req.profile?.businessId) {
+      return res.status(403).json({ error: "No business associated" });
+    }
+    
+    const businessId = req.profile.businessId;
+    
+    // Gather analytics
+    const [tasks, customers, forms, reminders] = await Promise.all([
+      storage.getTasks(businessId),
+      storage.getCustomers(businessId),
+      storage.getForms(businessId),
+      storage.getReminders(businessId)
+    ]);
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    res.json({
+      totalTasks: tasks.length,
+      tasksByStatus: {
+        todo: tasks.filter(t => t.status === "todo").length,
+        in_progress: tasks.filter(t => t.status === "in_progress").length,
+        done: tasks.filter(t => t.status === "done").length
+      },
+      tasksByPriority: {
+        high: tasks.filter(t => t.priority === "high").length,
+        medium: tasks.filter(t => t.priority === "medium").length,
+        low: tasks.filter(t => t.priority === "low").length
+      },
+      totalCustomers: customers.length,
+      newCustomersLast30Days: customers.filter(c => 
+        c.createdAt && new Date(c.createdAt) >= thirtyDaysAgo
+      ).length,
+      totalForms: forms.length,
+      totalReminders: reminders.length,
+      pendingReminders: reminders.filter(r => r.status === "pending").length
+    });
+  });
+  
+  // Admin: Invite user to business (creates pending profile)
+  app.post("/api/admin/invite", requireAdmin(), async (req: any, res) => {
+    const { email, role } = req.body;
+    
+    if (!email || !role) {
+      return res.status(400).json({ error: "Email and role are required" });
+    }
+    
+    if (!["admin", "staff", "guest"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+    
+    // In a real app, this would send an email invitation
+    // For now, we'll just return success with the invitation details
+    res.json({
+      message: "Invitation sent",
+      email,
+      role,
+      businessId: req.profile.businessId
+    });
+  });
 
   return httpServer;
-}
-
-async function seedDatabase() {
-  // Check if we have any businesses, if not, create a demo one?
-  // Since businesses are tied to users, we might wait for the first user.
-  // Or we can create some dummy data if needed.
-  // For now, let's just log that we are ready.
-  console.log("Database initialized. Ready for users.");
 }

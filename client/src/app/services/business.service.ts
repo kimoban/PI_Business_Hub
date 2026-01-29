@@ -48,6 +48,10 @@ export class BusinessService {
     return this.profileSubject.value?.business || null;
   }
 
+  getCurrentBusinessId(): number | null {
+    return this.profileSubject.value?.businessId || null;
+  }
+
   constructor(private http: HttpClient) {}
 
   loadProfile(): Observable<Profile> {

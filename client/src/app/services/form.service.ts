@@ -70,8 +70,13 @@ export class FormService {
     return this.http.post<FormSubmission>(`/api/forms/${formId}/submissions`, { data }, { withCredentials: true });
   }
 
+  updateForm(businessId: number, formId: number, data: Partial<CreateForm>): Observable<Form> {
+    return this.http.put<Form>(`/api/forms/${formId}`, data, { withCredentials: true })
+      .pipe(tap(() => this.loadForms(businessId).subscribe()));
+  }
+
   deleteForm(businessId: number, formId: number): Observable<void> {
-    return this.http.delete<void>(`/api/businesses/${businessId}/forms/${formId}`, { withCredentials: true })
+    return this.http.delete<void>(`/api/forms/${formId}`, { withCredentials: true })
       .pipe(tap(() => this.loadForms(businessId).subscribe()));
   }
 }

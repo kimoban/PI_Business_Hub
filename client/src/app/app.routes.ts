@@ -32,6 +32,16 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'reminders',
+    loadComponent: () => import('./pages/reminders/reminders.component').then(m => m.RemindersComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'admin',
+    loadComponent: () => import('./pages/admin/admin.component').then(m => m.AdminComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent),
     canActivate: [authGuard]

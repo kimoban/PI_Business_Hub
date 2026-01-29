@@ -6,15 +6,22 @@ import {
   insertFormSchema, 
   insertFormSubmissionSchema,
   insertProfileSchema,
+  insertReminderSchema,
+  insertNotificationSchema,
   businesses,
   customers,
   tasks,
   forms,
   formSubmissions,
   profiles,
+  reminders,
+  notifications,
   roleEnum,
   taskStatusEnum,
-  priorityEnum
+  priorityEnum,
+  reminderTypeEnum,
+  reminderStatusEnum,
+  notificationTypeEnum
 } from './schema';
 import { users } from './models/auth';
 
@@ -208,6 +215,110 @@ export const api = {
       input: insertProfileSchema.omit({ userId: true }),
       responses: {
         201: z.custom<typeof profiles.$inferSelect>(),
+      },
+    },
+  },
+
+  reminders: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/businesses/:businessId/reminders',
+      responses: {
+        200: z.array(z.custom<typeof reminders.$inferSelect & { 
+          task: typeof tasks.$inferSelect | null,
+          customer: typeof customers.$inferSelect | null 
+        }>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/reminders/:id',
+      responses: {
+        200: z.custom<typeof reminders.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/businesses/:businessId/reminders',
+      input: insertReminderSchema.omit({ businessId: true, createdBy: true }),
+      responses: {
+        201: z.custom<typeof reminders.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/reminders/:id',
+      input: insertReminderSchema.partial().omit({ businessId: true, createdBy: true }),
+      responses: {
+        200: z.custom<typeof reminders.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/reminders/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    complete: {
+      method: 'POST' as const,
+      path: '/api/reminders/:id/complete',
+      responses: {
+        200: z.custom<typeof reminders.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    snooze: {
+      method: 'POST' as const,
+      path: '/api/reminders/:id/snooze',
+      input: z.object({ dueAt: z.string() }),
+      responses: {
+        200: z.custom<typeof reminders.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+
+  notifications: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/me/notifications',
+      responses: {
+        200: z.array(z.custom<typeof notifications.$inferSelect>()),
+      },
+    },
+    unreadCount: {
+      method: 'GET' as const,
+      path: '/api/me/notifications/unread-count',
+      responses: {
+        200: z.object({ count: z.number() }),
+      },
+    },
+    markRead: {
+      method: 'POST' as const,
+      path: '/api/notifications/:id/read',
+      responses: {
+        200: z.custom<typeof notifications.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    markAllRead: {
+      method: 'POST' as const,
+      path: '/api/me/notifications/mark-all-read',
+      responses: {
+        200: z.object({ success: z.boolean() }),
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/notifications/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
       },
     },
   }
