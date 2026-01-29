@@ -81,8 +81,35 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+    // Check if Angular client exists
+    const fs = await import("fs");
+    const path = await import("path");
+    const angularJsonPath = path.join(process.cwd(), "client", "angular.json");
+    
+    if (fs.existsSync(angularJsonPath)) {
+      // Use Angular dev server
+      console.log("Angular client detected - run Angular dev server separately with: cd client && npm start");
+      console.log("Or access the API directly at http://localhost:5000/api/*");
+      
+      // Serve a simple message for non-API routes in dev mode
+      app.use("/{*path}", (_req, res) => {
+        res.send(`
+          <html>
+            <body style="font-family: system-ui; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+              <h1>PI Business Hub - Development Mode</h1>
+              <p>API is running on port 5000</p>
+              <p>To run the Angular frontend:</p>
+              <code style="background: #f0f0f0; padding: 10px; border-radius: 5px;">cd client && npm start</code>
+              <p style="margin-top: 20px;">Then open <a href="http://localhost:4200">http://localhost:4200</a></p>
+            </body>
+          </html>
+        `);
+      });
+    } else {
+      // Fallback to Vite for React
+      const { setupVite } = await import("./vite");
+      await setupVite(httpServer, app);
+    }
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
